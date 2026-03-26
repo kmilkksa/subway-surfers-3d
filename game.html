@@ -136,10 +136,10 @@
         const CONFIG = {
             LANES: [-3.5, 0, 3.5],
             LANE_WIDTH: 3.5,
-            JUMP_FORCE: 0.35,
-            GRAVITY: 0.018,
-            INITIAL_SPEED: 0.5,
-            MAX_SPEED: 1.8,
+            JUMP_FORCE: 0.45,
+            GRAVITY: 0.022,
+            INITIAL_SPEED: 0.8,
+            MAX_SPEED: 2.5,
             SEGMENT_LENGTH: 50,
             COLORS: {
                 SKY: 0x87CEEB,
@@ -348,8 +348,10 @@
             }
 
             update(delta, speed) {
-                const lerpFactor = 0.25;
+                const lerpFactor = 0.35;
                 this.group.position.x += (CONFIG.LANES[this.targetLane] - this.group.position.x) * lerpFactor;
+                
+                this.group.rotation.z = (CONFIG.LANES[this.targetLane] - this.group.position.x) * -0.2;
                 
                 if (this.isFlying) {
                     this.group.position.y = 5 + Math.sin(Date.now() * 0.003) * 0.5;
@@ -1157,27 +1159,36 @@
                 const pPos = this.player.getPosition();
                 
                 for (const obs of this.obstacles.getObstacles()) {
+                    const distZ = Math.abs(pPos.z - obs.mesh.position.z);
+                    
+                    if (distZ < 1.5 && !this.player.getNearMiss()) {
+                        this.player.triggerNearMiss();
+                    }
+                    
                     if (pBox.intersectsBox(obs.box)) {
                         if (this.player.invincible) continue;
                         if (this.player.isFlying) continue;
+                        
                         if (obs.type === 'barrel' || obs.type === 'cone') {
                             if (pPos.y > 1) continue;
-                            if (this.player.getNearMiss() && pPos.y < 0.5) {
-                                this.ui.showNearMiss('CLOSE!');
-                                this.score += 50;
-                                continue;
-                            }
                             this.startChase();
                             return;
                         }
                         if (obs.type === 'block') {
-                            if (this.player.getNearMiss() && Math.abs(pPos.x - CONFIG.LANES[obs.lane]) < 1.5) {
-                                this.ui.showNearMiss('NEAR MISS! +100');
-                                this.score += 100;
-                                continue;
-                            }
                             this.startChase();
                             return;
+                        }
+                    }
+                    
+                    if (this.player.getNearMiss() && distZ < 0.5) {
+                        if (obs.type === 'barrel' || obs.type === 'cone') {
+                            if (pPos.y > 1) {
+                                this.ui.showNearMiss('CLOSE MISS! +50');
+                                this.score += 50;
+                            }
+                        } else if (obs.type === 'block') {
+                            this.ui.showNearMiss('NEAR MISS! +100');
+                            this.score += 100;
                         }
                     }
                 }
@@ -1215,7 +1226,10 @@
                 const speedBoost = this.powerUps.getSpeedBoost();
                 const currentSpeed = this.speed * speedBoost;
                 
-                this.player.mesh.position.z -= currentSpeed;
+                this.speed += delta * 0.01;
+                this.speed = Math.min(this.speed, CONFIG.MAX_SPEED);
+                
+                this.player.group.position.z -= currentSpeed;
                 this.distance += currentSpeed;
                 
                 this.powerUps.update(delta);
@@ -1237,8 +1251,8 @@
                 
                 this.player.update(delta, currentSpeed);
                 this.obstacles.update(
-                    this.player.mesh.position.z,
-                    this.player.mesh.position,
+                    this.player.group.position.z,
+                    this.player.group.position,
                     this.powerUps.isActive('MAGNET'),
                     currentSpeed
                 );
@@ -1261,27 +1275,27 @@
                 this.ui.updatePowerUps(this.powerUps.getActive());
                 this.ui.updateMultiplier(mult);
                 
-                if (Math.random() < currentSpeed * 0.3) this.ui.emitSpeedLine();
+                if (Math.random() < currentSpeed * 0.6) this.ui.emitSpeedLine();
                 
-                const camTargetX = this.player.mesh.position.x * 0.3;
-                const camTargetZ = this.player.mesh.position.z + 12;
-                const camTargetY = this.player.isFlying ? 10 : 6;
+                const camTargetX = this.player.group.position.x * 0.4;
+                const camTargetZ = this.player.group.position.z + 12;
+                const camTargetY = this.player.isFlying ? 12 : 7;
                 
                 if (this.state === GameState.CHASE) {
-                    this.cameraShake = 0.3;
+                    this.cameraShake = 0.4;
                 } else {
                     this.cameraShake *= 0.9;
                 }
                 
-                this.camera.position.x += (camTargetX - this.camera.position.x) * 0.1 + (Math.random() - 0.5) * this.cameraShake;
+                this.camera.position.x += (camTargetX - this.camera.position.x) * 0.15 + (Math.random() - 0.5) * this.cameraShake;
                 this.camera.position.y += (camTargetY - this.camera.position.y) * 0.1 + (Math.random() - 0.5) * this.cameraShake;
-                this.camera.position.z += (camTargetZ - this.camera.position.z) * 0.1;
+                this.camera.position.z += (camTargetZ - this.camera.position.z) * 0.15;
                 
-                const tilt = (this.player.mesh.position.x - this.camera.position.x) * 0.02;
+                const tilt = (this.player.group.position.x - this.camera.position.x) * 0.03;
                 this.camera.lookAt(
-                    this.player.mesh.position.x * 0.5,
-                    2,
-                    this.player.mesh.position.z - 10
+                    this.player.group.position.x,
+                    1.5,
+                    this.player.group.position.z - 8
                 );
                 this.camera.rotation.z = tilt;
             }
