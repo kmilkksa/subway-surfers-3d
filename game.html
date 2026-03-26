@@ -660,7 +660,7 @@
                 this.powerUps.push({ mesh: group, box, type, collected: false });
             }
 
-            update(playerZ, hasMagnet, speed) {
+            update(playerZ, playerPos, hasMagnet, speed) {
                 this.ground.position.z = playerZ - 500;
                 
                 while (this.lastZ > playerZ - 200) {
@@ -684,10 +684,9 @@
                     coin.box.setFromObject(coin.mesh);
                     
                     if (hasMagnet && !coin.collected) {
-                        const p = player.mesh.position;
-                        const dist = coin.mesh.position.distanceTo(p);
+                        const dist = coin.mesh.position.distanceTo(playerPos);
                         if (dist < 12) {
-                            coin.mesh.position.lerp(new THREE.Vector3(p.x, p.y + 1, p.z), 0.12);
+                            coin.mesh.position.lerp(new THREE.Vector3(playerPos.x, playerPos.y + 1, playerPos.z), 0.12);
                         }
                     }
                     
@@ -1242,6 +1241,7 @@
                 this.player.update(delta, currentSpeed);
                 this.obstacles.update(
                     this.player.mesh.position.z,
+                    this.player.mesh.position,
                     this.powerUps.isActive('MAGNET'),
                     currentSpeed
                 );
